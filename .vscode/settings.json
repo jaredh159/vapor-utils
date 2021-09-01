@@ -1,0 +1,8 @@
+{
+  "files.exclude": {
+    ".swiftpm/": true,
+    "**/*.swp": true,
+    "node_modules/": true,
+    ".build/": true
+  }
+}

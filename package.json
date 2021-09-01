@@ -1,0 +1,16 @@
+{
+  "name": "@gertrude/vapor-utils",
+  "version": "1.0.0",
+  "description": "grab bag of utils helpful for vapor apps",
+  "scripts": {
+    "dev": "npm run start",
+    "start": "watchexec --restart --watch Sources --exts swift --signal SIGINT swift build",
+    "test": "swift test 2>&1 | xcbeautify",
+    "test:clear": "clear && printf '\\e[3J' && npm run test; echo",
+    "test:watch": "watchexec --restart --watch Sources --watch Tests --exts swift npm run test:clear",
+    "format": "swift-format-5.3 --configuration ./.swift-format.json --recursive --in-place ./Sources ./Tests ./Package.swift"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
