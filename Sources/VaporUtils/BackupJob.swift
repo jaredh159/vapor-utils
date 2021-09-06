@@ -54,7 +54,7 @@ public struct BackupJob: ScheduledJob {
 
   private func dumpData() throws -> Data {
     let pgDump = Process()
-    pgDump.launchPath = pgDumpPath
+    pgDump.executableURL = URL(fileURLWithPath: pgDumpPath)
     var arguments = [dbName]
     for tableName in excludeDataFromTables {
       arguments += ["--exclude-table-data", tableName]
@@ -63,7 +63,7 @@ public struct BackupJob: ScheduledJob {
     pgDump.standardOutput = Pipe()
 
     let gzip = Process()
-    gzip.launchPath = gzipPath
+    gzip.executableURL = URL(fileURLWithPath: gzipPath)
     gzip.arguments = ["-c"]
     gzip.standardInput = pgDump.standardOutput
     let outputPipe = Pipe()
