@@ -29,6 +29,11 @@ public struct BackupJob: ScheduledJob {
   }
 
   public func run(context: QueueContext) -> EventLoopFuture<Void> {
+    guard let data = try? dumpData() else {
+      context.logger.error("[VaporUtils] Error getting gzipped database backup data")
+      return context.eventLoop.makeSucceededVoidFuture()
+    }
+
     var email = SendGridEmail(
       to: .init(email: "jared@netrivet.com", name: "Jared Henderson"),
       from: fromEmail,
@@ -36,18 +41,18 @@ public struct BackupJob: ScheduledJob {
       html: "Backup attached."
     )
 
-    email.attachments = [SendGridEmail.Attachment(data: dumpData, filename: filename())]
+    email.attachments = [SendGridEmail.Attachment(data: data, filename: filename())]
 
     return email.send(on: context.application.client, withKey: sendGridApiKey).map { success in
       if success {
-        context.logger.info("Successfully sent scheduled database backup")
+        context.logger.info("[VaporUtils] Successfully sent scheduled database backup")
       } else {
-        context.logger.error("Failed to send scheduled database backup")
+        context.logger.error("[VaporUtils] Failed to send scheduled database backup")
       }
     }.transform(to: ())
   }
 
-  private var dumpData: Data {
+  private func dumpData() throws -> Data {
     let pgDump = Process()
     pgDump.launchPath = pgDumpPath
     var arguments = [dbName]
@@ -64,8 +69,8 @@ public struct BackupJob: ScheduledJob {
     let outputPipe = Pipe()
     gzip.standardOutput = outputPipe
 
-    pgDump.launch()
-    gzip.launch()
+    try pgDump.run()
+    try gzip.run()
     pgDump.waitUntilExit()
     gzip.waitUntilExit()
 
