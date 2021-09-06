@@ -4,6 +4,7 @@ import Vapor
 public struct BackupJob: ScheduledJob {
   let appName: String
   let pgDumpPath: String
+  let gzipPath: String
   let dbName: String
   let excludeDataFromTables: [String]
   let sendGridApiKey: String
@@ -13,6 +14,7 @@ public struct BackupJob: ScheduledJob {
     appName: String,
     dbName: String,
     pgDumpPath: String,
+    gzipPath: String,
     sendGridApiKey: String,
     fromEmail: EmailAddress = .init(email: "backups@vapor-utils.com", name: "Vapor Backups"),
     excludeDataFromTables: [String] = []
@@ -20,6 +22,7 @@ public struct BackupJob: ScheduledJob {
     self.appName = appName
     self.dbName = dbName
     self.pgDumpPath = pgDumpPath
+    self.gzipPath = gzipPath
     self.sendGridApiKey = sendGridApiKey
     self.fromEmail = fromEmail
     self.excludeDataFromTables = excludeDataFromTables
@@ -45,24 +48,32 @@ public struct BackupJob: ScheduledJob {
   }
 
   private var dumpData: Data {
-    let task = Process()
-    task.executableURL = URL(fileURLWithPath: pgDumpPath)
+    let pgDump = Process()
+    pgDump.launchPath = pgDumpPath
     var arguments = [dbName]
-
     for tableName in excludeDataFromTables {
       arguments += ["--exclude-table-data", tableName]
     }
+    pgDump.arguments = arguments
+    pgDump.standardOutput = Pipe()
 
-    task.arguments = arguments
+    let gzip = Process()
+    gzip.launchPath = gzipPath
+    gzip.arguments = ["-c"]
+    gzip.standardInput = pgDump.standardOutput
+    let outputPipe = Pipe()
+    gzip.standardOutput = outputPipe
 
-    let pipe = Pipe()
-    task.standardOutput = pipe
-    try? task.run()
-    return pipe.fileHandleForReading.readDataToEndOfFile()
+    pgDump.launch()
+    gzip.launch()
+    pgDump.waitUntilExit()
+    gzip.waitUntilExit()
+
+    return outputPipe.fileHandleForReading.readDataToEndOfFile()
   }
 
   private func filename() -> String {
-    "\(appName.lowercased().replacingOccurrences(of: " ", with: "-"))-backup_\(filedate()).sql"
+    "\(appName.lowercased().replacingOccurrences(of: " ", with: "-"))-backup_\(filedate()).sql.gz"
   }
 }
 
