@@ -1,13 +1,18 @@
 import Foundation
 import Vapor
 
-public struct EmailAddress: Codable {
+public struct EmailAddress: Codable, ExpressibleByStringLiteral {
   let email: String
   let name: String?
 
-  public init(email: String, name: String?) {
+  public init(email: String, name: String? = nil) {
     self.email = email
     self.name = name
+  }
+
+  public init(stringLiteral email: String) {
+    self.email = email
+    self.name = nil
   }
 }
 

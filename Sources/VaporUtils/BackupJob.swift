@@ -4,7 +4,6 @@ import Vapor
 public struct BackupJob: ScheduledJob {
   let appName: String
   let pgDumpPath: String
-  let gzipPath: String
   let dbName: String
   let excludeDataFromTables: [String]
   let sendGridApiKey: String
@@ -14,7 +13,6 @@ public struct BackupJob: ScheduledJob {
     appName: String,
     dbName: String,
     pgDumpPath: String,
-    gzipPath: String,
     sendGridApiKey: String,
     fromEmail: EmailAddress = .init(email: "backups@vapor-utils.com", name: "Vapor Backups"),
     excludeDataFromTables: [String] = []
@@ -22,18 +20,12 @@ public struct BackupJob: ScheduledJob {
     self.appName = appName
     self.dbName = dbName
     self.pgDumpPath = pgDumpPath
-    self.gzipPath = gzipPath
     self.sendGridApiKey = sendGridApiKey
     self.fromEmail = fromEmail
     self.excludeDataFromTables = excludeDataFromTables
   }
 
   public func run(context: QueueContext) -> EventLoopFuture<Void> {
-    guard let data = try? dumpData() else {
-      context.logger.error("[VaporUtils] Error getting gzipped database backup data")
-      return context.eventLoop.makeSucceededVoidFuture()
-    }
-
     var email = SendGridEmail(
       to: .init(email: "jared@netrivet.com", name: "Jared Henderson"),
       from: fromEmail,
@@ -41,7 +33,7 @@ public struct BackupJob: ScheduledJob {
       html: "Backup attached."
     )
 
-    email.attachments = [SendGridEmail.Attachment(data: data, filename: filename())]
+    email.attachments = [SendGridEmail.Attachment(data: dumpData, filename: filename())]
 
     return email.send(on: context.application.client, withKey: sendGridApiKey).map { success in
       if success {
@@ -52,28 +44,19 @@ public struct BackupJob: ScheduledJob {
     }.transform(to: ())
   }
 
-  private func dumpData() throws -> Data {
+  private var dumpData: Data {
     let pgDump = Process()
     pgDump.executableURL = URL(fileURLWithPath: pgDumpPath)
-    var arguments = [dbName]
+
+    var arguments = [dbName, "-Z", "9"]  // -Z 9 means full gzip compression
     for tableName in excludeDataFromTables {
       arguments += ["--exclude-table-data", tableName]
     }
     pgDump.arguments = arguments
-    pgDump.standardOutput = Pipe()
 
-    let gzip = Process()
-    gzip.executableURL = URL(fileURLWithPath: gzipPath)
-    gzip.arguments = ["-c"]
-    gzip.standardInput = pgDump.standardOutput
     let outputPipe = Pipe()
-    gzip.standardOutput = outputPipe
-
-    try pgDump.run()
-    try gzip.run()
-    pgDump.waitUntilExit()
-    gzip.waitUntilExit()
-
+    pgDump.standardOutput = outputPipe
+    try? pgDump.run()
     return outputPipe.fileHandleForReading.readDataToEndOfFile()
   }
 
