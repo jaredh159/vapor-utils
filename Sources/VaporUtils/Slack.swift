@@ -5,8 +5,21 @@ public struct SlackMessage {
     let ok: Bool
   }
 
-  public enum Emoji: String {
+  public enum Emoji: CustomStringConvertible {
     case unlock
+    case robotFace
+    case custom(String)
+
+    public var description: String {
+      switch self {
+      case .unlock:
+        return "unlock"
+      case .robotFace:
+        return "robot_face"
+      case .custom(let custom):
+        return custom
+      }
+    }
   }
 
   let text: String
@@ -28,7 +41,7 @@ public struct SlackMessage {
       try req.content.encode([
         "channel": channel,
         "text": text,
-        "icon_emoji": emoji.rawValue,
+        "icon_emoji": emoji.description,
         "username": username,
         "unfurl_links": "false",
         "unfurl_media": "false",
