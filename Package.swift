@@ -1,11 +1,9 @@
-// swift-tools-version:5.3
-// The swift-tools-version declares the minimum version of Swift required to build this package.
-
+// swift-tools-version:5.5
 import PackageDescription
 
 let package = Package(
   name: "VaporUtils",
-  platforms: [.macOS(.v10_15)],
+  platforms: [.macOS(.v11)],
   products: [
     .library(name: "VaporUtils", targets: ["VaporUtils"]),
     .library(name: "XCTVaporUtils", targets: ["XCTVaporUtils"]),
@@ -13,11 +11,11 @@ let package = Package(
   dependencies: [
     .package(
       url: "https://github.com/vapor/vapor.git",
-      from: "4.48.3"
+      from: "4.54.0"
     ),
     .package(
       url: "https://github.com/vapor/fluent.git",
-      from: "4.3.1"
+      from: "4.4.0"
     ),
     .package(
       name: "GraphQLKit",

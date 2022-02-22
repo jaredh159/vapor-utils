@@ -46,7 +46,7 @@ public struct GraphQLTest {
     self.headers = headers
   }
 
-  public func run(_ testCase: GraphQLTestCase, variables: [String: Map]? = nil) {
+  public func run(_ app: Application, variables: [String: Map]? = nil) {
     let queryRequest = QueryRequest(query: query, operationName: nil, variables: variables)
     let data = String(data: try! JSONEncoder().encode(queryRequest), encoding: .utf8)!
 
@@ -60,7 +60,7 @@ public struct GraphQLTest {
       reqHeaders.add(name: name, value: value)
     }
 
-    try! testCase.app.testable().test(.POST, "/graphql", headers: reqHeaders, body: body) {
+    try! app.testable().test(.POST, "/graphql", headers: reqHeaders, body: body) {
       res in
       if expectedError == nil {
         XCTAssertEqual(res.status, .ok)
@@ -88,6 +88,17 @@ public struct GraphQLTest {
         case .containsKVPs(let pairs):
           for (key, value) in pairs {
             switch value {
+            case let map as GraphQL.Map:
+              switch map.typeDescription {
+              case "string":
+                XCTAssertContains(rawResponse, "\"\(key)\":\"\(try! map.stringValue())\"")
+              case "bool":
+                XCTAssertContains(rawResponse, "\"\(key)\":\(try! map.boolValue())")
+              case "number":
+                XCTAssertContains(rawResponse, "\"\(key)\":\(try! map.intValue())")
+              default:
+                XCTAssertContains(rawResponse, "\"\(key)\":\"\(String(describing: map))\"")
+              }
             case let bool as Bool:
               XCTAssertContains(rawResponse, "\"\(key)\":\(bool)")
             case let float as Float:
@@ -112,18 +123,18 @@ public struct GraphQLTest {
 }
 
 open class GraphQLTestCase: XCTestCase {
-  open func configureApp(_ app: Application) throws {}
+  public static func configureApp(_ app: Application) throws {}
 
-  public var app: Application!
+  public static var app: Application!
 
-  public override func setUp() {
+  public override static func setUp() {
     app = Application(.testing)
     try! app.autoRevert().wait()
     try! app.autoMigrate().wait()
     try! configureApp(app)
   }
 
-  public override func tearDown() {
+  public override static func tearDown() {
     app.shutdown()
   }
 }
